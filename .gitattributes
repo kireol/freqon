@@ -1,0 +1,4 @@
+# Windows scripts keep Windows line endings; shell scripts keep Unix ones (MSYS2 bash too).
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.sh text eol=lf

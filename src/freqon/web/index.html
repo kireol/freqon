@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freqon</title>
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Barlow:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main>
+  <header class="brand"><img src="/static/icon.svg" alt="" width="28" height="28"><span>Freqon</span>
+    <form id="account" class="account" method="post" action="/logout" hidden>
+      <span id="account-name"></span><button class="quiet" type="submit">Sign out</button>
+    </form>
+  </header>
+  <div id="alert" class="alert" role="alert" hidden></div>
+  <section class="readout" aria-live="polite">
+    <img id="art" class="art" alt="" hidden>
+    <div class="freq-line">
+      <span id="freq" class="freq">--.-</span><span class="unit">MHz</span>
+      <span id="source" class="source source-none">Off</span>
+    </div>
+    <h1 id="station-name">Not tuned</h1>
+    <p id="now-playing" class="now-playing"></p>
+    <p id="signal" class="signal"></p>
+    <p id="details" class="details"></p>
+    <button id="add-station" class="quiet add-station" type="button" hidden>Add to station list</button>
+  </section>
+
+  <section class="dial-wrap" aria-label="FM band">
+    <div id="dial" class="dial">
+      <div id="marks" class="marks"></div>
+      <div id="needle" class="needle" hidden></div>
+    </div>
+    <div id="scale" class="scale" aria-hidden="true"></div>
+  </section>
+
+  <section class="controls">
+    <button id="play" class="play" type="button" aria-pressed="false">Listen</button>
+    <div class="mode" role="radiogroup" aria-label="Reception">
+      <button type="button" role="radio" data-mode="auto" aria-checked="true">HD when available</button>
+      <button type="button" role="radio" data-mode="digital" aria-checked="false">HD only</button>
+      <button type="button" role="radio" data-mode="analog" aria-checked="false">FM only</button>
+    </div>
+    <div id="programs" class="programs" aria-label="HD channels"></div>
+  </section>
+
+  <form id="tune-form" class="tune-form">
+    <label for="tune-input">Tune to station</label>
+    <div class="tune-row">
+      <input id="tune-input" inputmode="decimal" autocomplete="off" placeholder="101.1" pattern="[0-9]{2,3}(\.[0-9])?" required>
+      <select id="tune-program" aria-label="HD channel">
+        <option value="0">HD1 / FM</option><option value="1">HD2</option>
+        <option value="2">HD3</option><option value="3">HD4</option>
+      </select>
+      <button type="submit">Tune</button>
+    </div>
+  </form>
+
+  <section class="stations">
+    <div class="stations-head">
+      <h2>Stations</h2>
+      <button id="scan" type="button" class="quiet">Scan for stations</button>
+    </div>
+    <p id="scan-status" class="scan-status" hidden></p>
+    <ul id="station-list" class="station-list"></ul>
+    <p id="no-stations" class="empty" hidden>No stations saved yet. Scan to find what your antenna can receive, or tune a frequency directly.</p>
+  </section>
+  <section id="maps" class="maps" aria-label="Traffic and weather maps" hidden>
+    <h2>Maps from the station</h2>
+    <div class="map-row">
+      <figure id="map-traffic" hidden><img alt="Traffic map"><figcaption>Traffic</figcaption></figure>
+      <figure id="map-weather" hidden><img alt="Weather map"><figcaption>Weather</figcaption></figure>
+    </div>
+  </section>
+</main>
+
+<dialog id="busy">
+  <form method="dialog">
+    <h2>Tuner in use</h2>
+    <p id="busy-message"></p>
+    <p class="hint" id="busy-hint">Taking over changes the station for everyone listening.</p>
+    <div class="dialog-actions">
+      <button value="cancel" class="quiet">Keep current station</button>
+      <button value="override" id="busy-override">Take over</button>
+    </div>
+  </form>
+</dialog>
+
+<audio id="audio" preload="none"></audio>
+<script src="/static/app.js"></script>
+</body>
+</html>

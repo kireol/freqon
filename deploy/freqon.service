@@ -1,0 +1,22 @@
+[Unit]
+Description=Freqon network HD Radio / FM tuner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=freqon
+Group=freqon
+ExecStart=/opt/freqon/venv/bin/freqon --config /etc/freqon/config.toml
+Restart=on-failure
+RestartSec=5
+# The DSP thread is latency sensitive; keep it ahead of background jobs on a Pi 3.
+Nice=-5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/freqon
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

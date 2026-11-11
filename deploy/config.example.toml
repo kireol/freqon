@@ -1,0 +1,88 @@
+# Freqon configuration. The installers put it in /etc/freqon/config.toml (Linux) or
+# ~/.config/freqon/config.toml (macOS, Windows). Every key is optional.
+
+port = 8080
+# Address clients (Plex, Jellyfin, xTeVe) should use to reach this server, if the
+# automatic one (taken from each request) is wrong, e.g. behind a reverse proxy.
+# public_url = "http://raspberrypi.local:8080"
+friendly_name = "Freqon"
+# Host names clients may use to reach this server. IP addresses, localhost, this
+# machine's hostname and <hostname>.local always work; add any other DNS names here.
+# (Unknown names are refused to block DNS-rebinding attacks from web pages.)
+# allowed_hosts = ["radio.home.arpa"]
+
+# Sign-in for the web player: set both to require it, leave both unset for none. Plex and
+# Jellyfin keep working without it. The password can instead come from the
+# FREQON_WEB_PASSWORD environment variable. Changing it signs everyone out.
+# web_username = "radio"
+# web_password = "choose a good one"
+data_dir = "/var/lib/freqon"
+
+# Tuner. Leave `gain` unset for automatic gain.
+device_index = 0
+# gain = 20.0
+# Frequency correction: "auto" measures the dongle's error from HD stations (two must
+# agree) and applies it the next time the dongle opens; or give a fixed number.
+# ppm = "auto"
+# rtltcp = "192.168.1.50:1234"   # use a dongle on another machine via rtl_tcp
+
+# More than one tuner? List them instead (each [[tuners]] table must come after
+# every top-level key, at the end of this file; see the bottom). One tuner plays every
+# HD channel of a station at once; each extra tuner adds a station.
+
+# Analog loudness relative to digital, so switching sources doesn't jump in volume.
+analog_gain = 0.6
+
+# Weak HD (Auto mode, HD1). On a weak signal nrsc5 fills the gaps with silence, so you'd
+# hear a second of music, then long stretches of nothing. Instead:
+#   - after HD has been weak for hd_fallback_seconds, play FM (0 turns this rule off);
+#   - go back to HD once it has been solid for hd_return_seconds;
+#   - after hd_max_fallbacks drops within hd_fallback_window_seconds, stay on FM until
+#     someone chooses Auto or HD in the web player, or the station changes.
+# hd_fallback_seconds = 1.5
+# hd_return_seconds = 5
+# hd_max_fallbacks = 3
+# hd_fallback_window_seconds = 300
+
+# Taking over a busy tuner: the web player's "Take over" button, and Plex/Jellyfin
+# opening a different channel. false = whoever has a tuner keeps it; others get "busy".
+# allow_takeovers = true
+
+# Release the tuner after this many seconds with nobody listening. Releasing closes the
+# dongle, which powers down its demodulator; nothing else runs while idle. Longer keeps
+# quick stop-and-restarts (or Plex channel changes) instant; shorter saves power.
+idle_timeout = 30
+
+# Where libnrsc5 lives if it isn't installed system-wide.
+nrsc5_lib = "/usr/local/lib/libnrsc5.so"
+
+# Camera picture for the Plex/Jellyfin video (optional). Without it the picture is a
+# still "now playing" card. The station and song are burned into the video as a bar
+# along the bottom; if the camera drops, the card is shown until it comes back.
+# Anything ffmpeg can open works: RTSP, go2rtc (rtsp://<go2rtc>:8554/<stream>), HTTP.
+# video_source = "rtsp://go2rtc.local:8554/camera"
+# video_size = "1280x720"      # Raspberry Pi 3: "640x360"
+# video_fps = 15               # Raspberry Pi 3: 10
+# video_encoder = "libx264"    # Raspberry Pi: "h264_v4l2m2m" (hardware encoder)
+# video_bitrate = "2500k"
+
+# Scanning: a channel counts as a station when it is this many dB above the
+# band's noise floor. Lower it to find weaker stations.
+scan_threshold_db = 6.0
+# Look for new stations on a tuner nobody is using; adds, never removes. Listening always
+# wins: a background scan stops the moment someone wants that tuner. While the radio is in
+# use (someone listened within the last hour) scan every auto_scan_active_hours, otherwise
+# every auto_scan_idle_days. 0 turns either off.
+auto_scan_idle_days = 30
+auto_scan_active_hours = 1
+scan_gain_db = 0.0
+
+# Several tuners (optional; replaces device_index/rtltcp above). Keys: device_index,
+# rtltcp, iq_file, gain, ppm. Anything a tuner leaves out comes from the top level.
+# [[tuners]]
+# serial = "00000001"     # freqon --list-dongles shows each dongle's serial
+# [[tuners]]
+# device_index = 1
+# gain = 20.0
+# [[tuners]]
+# rtltcp = "192.168.1.50:1234"
