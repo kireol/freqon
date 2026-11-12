@@ -80,10 +80,8 @@ It covers the web player and its controls; Plex and Jellyfin keep working withou
 
 Notes per system:
 
-- **Raspberry Pi:** a Pi 3 is enough for one tuner. Analog decoding is roughly a third of
-  one core, nrsc5 about the same, and the Plex video is a still card at 2 frames/s. Camera
-  video and extra tuners need more: use the Pi's hardware encoder and a small picture
-  (see the example config), or a bigger machine.
+- **Raspberry Pi:** a Pi 3 is enough for one tuner. See [Raspberry Pi 3 performance](#raspberry-pi-3-performance)
+  for what each part costs.
 - **Linux:** runs as a `freqon` system user, which a udev rule lets open RTL-SDR dongles.
   Stock Fedora's ffmpeg has no H.264 encoder, so Plex/Jellyfin video needs RPM Fusion's
   ffmpeg (the installer warns). `--no-service` installs without starting it.
@@ -97,6 +95,40 @@ Notes per system:
   once: plug it in, run [Zadig](https://zadig.akeo.ie), choose *Options → List All
   Devices*, pick *Bulk-In, Interface (Interface 0)*, select WinUSB and *Replace Driver*.
   Freqon starts when the user who installed it signs in. `-Uninstall` removes it again.
+
+### Raspberry Pi 3 performance
+
+Measured on a Pi 3 Model B (64-bit Pi OS), one tuner, one listener. Percentages are of one
+of the Pi's four cores.
+
+| Part | CPU | Notes |
+|---|---|---|
+| nrsc5 (HD Radio decoder) | ~60% | Runs whenever the tuner is in use, on HD and analog stations alike |
+| Analog FM demodulator | ~35% | Freqon's own DSP thread |
+| MP3 encoder (web player) | ~8% | One per channel being listened to, shared by its listeners |
+| Plex/Jellyfin video, card only | small | A still "now playing" card at 2 frames/s |
+| Plex/Jellyfin video, camera | ~105% | Camera decode ~75% plus the hardware encoder ~30% (640x360, 10 frames/s, 1536x432 camera sub stream) |
+
+Listening alone takes about one core in total. Watching with a camera adds about another
+core, but only while someone is watching.
+
+- **nrsc5 is built with two speed-ups** that the installers apply automatically:
+  `-ffast-math`, about 30% faster with identical decoding (the audio differs by at most 1
+  bit), and a patch (`deploy/nrsc5-copy-usb-buffers.patch`) that copies each USB buffer
+  out of the dongle's uncached memory before reading it, which saves another third.
+  Without them nrsc5 needs more than a whole core on a Pi 3. It then falls behind and
+  drops samples: HD Radio hides the gaps, but **analog FM sounds choppy** and `htop` shows
+  one core pegged. Installed before these changes? Run the installer again; it rebuilds
+  nrsc5 and keeps your settings.
+- **Cameras:** use the camera's low-resolution sub stream, not the main one. Decoding is
+  the expensive part, and high-resolution streams (4K and up) are more than a Pi 3 can
+  decode in real time. Wide cameras are letterboxed, never cropped.
+- **Hardware video encoder** (`video_encoder = "h264_v4l2m2m"`): the service user has to
+  be in the `video` group. The installer does this; without it the video stream fails
+  with "Permission denied".
+- **Extra tuners** each add another nrsc5 and demodulator (about another core). Two on a
+  Pi 3 should fit without camera video, but that hasn't been tested; a Pi 4/5 or a PC
+  has more room.
 
 ### Development
 
@@ -133,7 +165,8 @@ Either:
 `rtsp://go2rtc.local:8554/camera`) and the picture becomes that camera with the station
 and song burned in along the bottom. If the camera drops, the card is shown until it
 comes back; the stream itself never stops. On a Pi 3 use `video_size = "640x360"`,
-`video_fps = 10` and `video_encoder = "h264_v4l2m2m"`.
+`video_fps = 10` and `video_encoder = "h264_v4l2m2m"`, and point `video_source` at the
+camera's low-resolution sub stream (see [Raspberry Pi 3 performance](#raspberry-pi-3-performance)).
 
 Each HD channel becomes a Plex channel numbered `<MHz×10>.<HD number>`, so 97.1 HD2
 is channel `971.2`. Analog-only stations appear as `<MHz×10>.1`.
