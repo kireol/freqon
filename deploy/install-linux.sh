@@ -115,6 +115,8 @@ fi
 echo "==> Installing Freqon"
 id freqon &>/dev/null || useradd --system --home /var/lib/freqon --shell /usr/sbin/nologin freqon
 getent group plugdev >/dev/null && usermod -aG plugdev freqon
+# The Pi's hardware video encoder (h264_v4l2m2m, /dev/video1x) belongs to the video group.
+getent group video >/dev/null && usermod -aG video freqon
 install -d -o freqon -g freqon /var/lib/freqon
 chown -R freqon:freqon /var/lib/freqon
 # Let the freqon user open RTL-SDR dongles, whatever group the distro's own rules use.
