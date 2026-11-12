@@ -33,6 +33,9 @@ from .mixer import HDPolicy, Mixer
 
 log = logging.getLogger(__name__)
 
+# The analog DSP works on at least this much I/Q per call (bytes; ~0.1 s). nrsc5 hands over
+# small blocks, and per-call overhead on blocks that small costs a Pi 3 a whole core.
+DSP_MIN_BATCH = INPUT_RATE * 2 // 10
 FM_MIN_MHZ = 87.5
 FM_MAX_MHZ = 108.0
 
@@ -352,17 +355,20 @@ class Radio:
             data = self._iq.get()
             if data is None:
                 return
-            # Batch whatever has queued up to amortise numpy call overhead.
+            # Gather ~0.1 s of samples to amortise numpy call overhead. Waiting for them is
+            # fine: the dongle delivers continuously, and the mixer is clocked by this path.
             parts = [data]
-            while len(parts) < 32:
+            size = len(data)
+            while size < DSP_MIN_BATCH:
                 try:
-                    more = self._iq.get_nowait()
+                    more = self._iq.get(timeout=0.25)
                 except queue.Empty:
                     break
                 if more is None:
                     self._iq.put(None)
                     break
                 parts.append(more)
+                size += len(more)
             data = b"".join(parts)
 
             if self._capture is not None and len(self._capture) < self._capture_bytes:

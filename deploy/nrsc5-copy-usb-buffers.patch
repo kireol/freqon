@@ -1,0 +1,22 @@
+--- a/src/nrsc5.c
++++ b/src/nrsc5.c
+@@ -124,7 +124,18 @@
+     if (st->stopped && st->dev)
+         rtlsdr_cancel_async(st->dev);
+     else
+-        input_push_cu8(&st->input, buf, len);
++    {
++        // rtl-sdr's zero-copy USB buffers can be uncached memory (e.g. on a Raspberry Pi), where
++        // every read is slow; one bulk copy into ordinary memory is much cheaper.
++        while (len > 0)
++        {
++            uint32_t n = len < sizeof(st->samples_buf) ? len : sizeof(st->samples_buf);
++            memcpy(st->samples_buf, buf, n);
++            input_push_cu8(&st->input, st->samples_buf, n);
++            buf += n;
++            len -= n;
++        }
++    }
+ }
+ 
+ static void *worker_thread(void *arg)

@@ -20,9 +20,32 @@ def left_channel(pcm: bytes) -> np.ndarray:
 
 def test_output_rate_matches_input_duration():
     demod = FMDemodulator()
-    pcm = demod.process(make_fm_cu8(1000, 1.0))
-    frames = len(pcm) // 4
-    assert abs(frames - AUDIO_RATE) < 10
+    first = len(demod.process(make_fm_cu8(1000, 1.0))) // 4
+    # The block filters hold back a little audio (well under 50 ms)...
+    assert AUDIO_RATE * 0.95 < first <= AUDIO_RATE
+    # ...and after that the output keeps exact pace with the input.
+    later = sum(len(demod.process(make_fm_cu8(1000, 1.0))) // 4 for _ in range(3))
+    assert abs(first + later - 4 * AUDIO_RATE) < AUDIO_RATE * 0.05
+    assert abs(later - 3 * AUDIO_RATE) < 2_000  # within one filter block
+
+
+def test_rejects_adjacent_station():
+    # A station 200 kHz away (strong) must not leak into the wanted one's audio.
+    n = INPUT_RATE
+    t = np.arange(n) / INPUT_RATE
+    wanted = 0.3 * np.exp(1j * 50_000 * np.sin(2 * np.pi * 1000 * t) / 1000)
+    other = 0.6 * np.exp(1j * (2 * np.pi * 200_000 * t + 50_000 * np.sin(2 * np.pi * 3100 * t) / 3100))
+    iq = wanted + other
+    raw = np.empty(2 * n, dtype=np.uint8)
+    raw[0::2] = np.clip(np.round(iq.real * 127.5 + 127.5), 0, 255)
+    raw[1::2] = np.clip(np.round(iq.imag * 127.5 + 127.5), 0, 255)
+    audio = left_channel(FMDemodulator(deemphasis_us=0.0001).process(raw.tobytes()))[4410:]
+    spectrum = np.abs(np.fft.rfft(audio * np.hanning(audio.size)))
+    freqs = np.fft.rfftfreq(audio.size, 1 / AUDIO_RATE)
+    assert abs(freqs[np.argmax(spectrum)] - 1000) < 5
+    tone = np.abs(freqs - 1000) <= 50
+    leak = (~tone) & (freqs < 15_000)
+    assert np.sum(spectrum[leak] ** 2) / np.sum(spectrum[tone] ** 2) < 10 ** (-60 / 10)
 
 
 def test_recovers_tone_frequency():

@@ -75,10 +75,20 @@ if [[ "$(git -C "$PREFIX/nrsc5" rev-parse HEAD 2>/dev/null)" != "$NRSC5_COMMIT" 
   git -C "$PREFIX/nrsc5" fetch -q --depth 1 https://github.com/theori-io/nrsc5.git "$NRSC5_COMMIT"
   git -C "$PREFIX/nrsc5" -c advice.detachedHead=false checkout -q FETCH_HEAD
 fi
+# Read the dongle's USB buffers with one bulk copy: on a Raspberry Pi they are uncached
+# memory, and nrsc5 reading samples straight out of them costs a Pi 3 about 30% of a core.
+PATCH="$(cd "$(dirname "$0")" && pwd)/nrsc5-copy-usb-buffers.patch"
+if ! git -C "$PREFIX/nrsc5" apply --reverse --check "$PATCH" 2>/dev/null; then
+  git -C "$PREFIX/nrsc5" apply "$PATCH"
+fi
 NEON=OFF
 # 32-bit ARM (armv7l, e.g. Pi OS 32-bit) can use nrsc5's NEON code; 64-bit ARM must not.
 [[ "$(uname -m)" == armv7l ]] && NEON=ON
-cmake -S "$PREFIX/nrsc5" -B "$PREFIX/nrsc5/build" -DUSE_NEON=$NEON -DCMAKE_BUILD_TYPE=Release
+# -ffast-math: nrsc5 is ~30% faster (complex arithmetic without the C99 NaN/Inf special
+# cases); decoding is unchanged and the audio differs by at most 1 LSB. Without it, a Pi 3
+# can't keep up on one core and drops samples, which makes analog FM choppy.
+cmake -S "$PREFIX/nrsc5" -B "$PREFIX/nrsc5/build" -DUSE_NEON=$NEON -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_FLAGS="-ffast-math"
 cmake --build "$PREFIX/nrsc5/build" -j"$(nproc)"
 cmake --install "$PREFIX/nrsc5/build"
 printf '/usr/local/lib\n/usr/local/lib64\n' > /etc/ld.so.conf.d/freqon.conf
